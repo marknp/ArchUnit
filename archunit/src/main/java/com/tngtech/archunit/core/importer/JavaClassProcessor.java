@@ -50,6 +50,7 @@ import com.tngtech.archunit.core.importer.RawAccessRecord.CodeUnit;
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.FieldVisitor;
+import org.objectweb.asm.Handle;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
@@ -63,6 +64,7 @@ import static com.google.common.base.Strings.nullToEmpty;
 import static com.tngtech.archunit.core.domain.JavaConstructor.CONSTRUCTOR_NAME;
 import static com.tngtech.archunit.core.domain.JavaStaticInitializer.STATIC_INITIALIZER_NAME;
 import static com.tngtech.archunit.core.importer.ClassFileProcessor.ASM_API_VERSION;
+import static com.tngtech.archunit.core.importer.JavaClassDescriptorImporter.isAsmHandle;
 import static com.tngtech.archunit.core.importer.RawInstanceofCheck.from;
 
 class JavaClassProcessor extends ClassVisitor {
@@ -383,6 +385,19 @@ class JavaClassProcessor extends ClassVisitor {
         }
 
         @Override
+        public void visitInvokeDynamicInsn(final String name,
+                final String descriptor,
+                final Handle bootstrapMethodHandle,
+                final Object... bootstrapMethodArguments){
+            for (Object methodArgument: bootstrapMethodArguments) {
+                if (isAsmHandle(methodArgument)) {
+                    Handle argument = (Handle) methodArgument;
+                    accessHandler.handleMethodReferenceInstruction(argument.getOwner(), argument.getName(), argument.getDesc());
+                }
+            }
+        }
+
+        @Override
         public void visitEnd() {
             declarationHandler.onDeclaredMemberAnnotations(codeUnitBuilder.getName(), codeUnitBuilder.getDescriptor(), annotations);
         }
@@ -497,6 +512,8 @@ class JavaClassProcessor extends ClassVisitor {
 
         void handleMethodInstruction(String owner, String name, String desc);
 
+        void handleMethodReferenceInstruction(String owner, String name, String desc);
+
         @Internal
         class NoOp implements AccessHandler {
             @Override
@@ -513,6 +530,10 @@ class JavaClassProcessor extends ClassVisitor {
 
             @Override
             public void handleMethodInstruction(String owner, String name, String desc) {
+            }
+
+            @Override
+            public void handleMethodReferenceInstruction(String owner, String name, String desc) {
             }
         }
     }

@@ -19,6 +19,7 @@ import java.util.List;
 
 import com.google.common.collect.ImmutableList;
 import com.tngtech.archunit.core.domain.JavaClassDescriptor;
+import org.objectweb.asm.Handle;
 import org.objectweb.asm.Type;
 
 class JavaClassDescriptorImporter {
@@ -40,6 +41,18 @@ class JavaClassDescriptorImporter {
 
     static boolean isAsmType(Object value) {
         return value instanceof Type;
+    }
+
+    static JavaClassDescriptor importAsmHandle(Object handle) {
+        return importAsmHandle((Handle) handle);
+    }
+
+    private static JavaClassDescriptor importAsmHandle(Handle handle) {
+        return JavaClassDescriptor.From.name(handle.getOwner() + handle.getName());
+    }
+
+    static boolean isAsmHandle(Object value) {
+        return value instanceof Handle;
     }
 
     static Object importAsmTypeIfPossible(Object value) {
