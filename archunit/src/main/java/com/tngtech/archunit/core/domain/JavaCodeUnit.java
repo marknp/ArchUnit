@@ -64,6 +64,8 @@ public abstract class JavaCodeUnit
     private Set<JavaFieldAccess> fieldAccesses = Collections.emptySet();
     private Set<JavaMethodCall> methodCalls = Collections.emptySet();
     private Set<JavaConstructorCall> constructorCalls = Collections.emptySet();
+    private Set<JavaMethodReference> methodReferences = Collections.emptySet();
+    private Set<JavaConstructorReference> constructorReferences = Collections.emptySet();
 
     JavaCodeUnit(JavaCodeUnitBuilder<?, ?> builder) {
         super(builder);
@@ -179,6 +181,16 @@ public abstract class JavaCodeUnit
     }
 
     @PublicAPI(usage = ACCESS)
+    public Set<JavaMethodReference> getMethodReferencesFromSelf() {
+        return methodReferences;
+    }
+
+    @PublicAPI(usage = ACCESS)
+    public Set<JavaConstructorReference> getConstructorReferencesFromSelf() {
+        return constructorReferences;
+    }
+
+    @PublicAPI(usage = ACCESS)
     public Set<ReferencedClassObject> getReferencedClassObjects() {
         return referencedClassObjects;
     }
@@ -197,10 +209,19 @@ public abstract class JavaCodeUnit
     }
 
     @PublicAPI(usage = ACCESS)
+    public Set<JavaReference<?>> getReferencesFromSelf() {
+        return ImmutableSet.<JavaReference<?>>builder()
+                .addAll(getMethodReferencesFromSelf())
+                .addAll(getConstructorReferencesFromSelf())
+                .build();
+    }
+
+    @PublicAPI(usage = ACCESS)
     public Set<JavaAccess<?>> getAccessesFromSelf() {
         return ImmutableSet.<JavaAccess<?>>builder()
                 .addAll(getCallsFromSelf())
                 .addAll(getFieldAccesses())
+                .addAll(getReferencesFromSelf())
                 .build();
     }
 
@@ -241,6 +262,8 @@ public abstract class JavaCodeUnit
         fieldAccesses = context.createFieldAccessesFor(this);
         methodCalls = context.createMethodCallsFor(this);
         constructorCalls = context.createConstructorCallsFor(this);
+        methodReferences = context.createMethodReferencesFor(this);
+        constructorReferences = context.createConstructorReferencesFor(this);
     }
 
     @ResolvesTypesViaReflection

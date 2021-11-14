@@ -228,6 +228,22 @@ class JavaClassMembers {
         return result.build();
     }
 
+    Set<JavaMethodReference> getMethodReferencesFromSelf() {
+        ImmutableSet.Builder<JavaMethodReference> result = ImmutableSet.builder();
+        for (JavaCodeUnit codeUnit : codeUnits) {
+            result.addAll(codeUnit.getMethodReferencesFromSelf());
+        }
+        return result.build();
+    }
+
+    Set<JavaConstructorReference> getConstructorReferencesFromSelf() {
+        ImmutableSet.Builder<JavaConstructorReference> result = ImmutableSet.builder();
+        for (JavaCodeUnit codeUnit : codeUnits) {
+            result.addAll(codeUnit.getConstructorReferencesFromSelf());
+        }
+        return result.build();
+    }
+
     Set<JavaFieldAccess> getFieldAccessesToSelf() {
         ImmutableSet.Builder<JavaFieldAccess> result = ImmutableSet.builder();
         for (JavaField field : fields) {

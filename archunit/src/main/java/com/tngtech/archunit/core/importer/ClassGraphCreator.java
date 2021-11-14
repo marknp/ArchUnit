@@ -39,11 +39,13 @@ import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.domain.JavaCodeUnit;
 import com.tngtech.archunit.core.domain.JavaConstructor;
 import com.tngtech.archunit.core.domain.JavaConstructorCall;
+import com.tngtech.archunit.core.domain.JavaConstructorReference;
 import com.tngtech.archunit.core.domain.JavaField;
 import com.tngtech.archunit.core.domain.JavaFieldAccess;
 import com.tngtech.archunit.core.domain.JavaMember;
 import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.core.domain.JavaMethodCall;
+import com.tngtech.archunit.core.domain.JavaMethodReference;
 import com.tngtech.archunit.core.domain.JavaStaticInitializer;
 import com.tngtech.archunit.core.domain.JavaType;
 import com.tngtech.archunit.core.domain.JavaTypeVariable;
@@ -51,8 +53,10 @@ import com.tngtech.archunit.core.importer.AccessRecord.FieldAccessRecord;
 import com.tngtech.archunit.core.importer.DomainBuilders.JavaAnnotationBuilder.ValueBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.JavaClassTypeParametersBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.JavaConstructorCallBuilder;
+import com.tngtech.archunit.core.importer.DomainBuilders.JavaConstructorReferenceBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.JavaFieldAccessBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.JavaMethodCallBuilder;
+import com.tngtech.archunit.core.importer.DomainBuilders.JavaMethodReferenceBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.JavaParameterizedTypeBuilder;
 import com.tngtech.archunit.core.importer.ImportedClasses.MethodReturnTypeGetter;
 import com.tngtech.archunit.core.importer.RawAccessRecord.CodeUnit;
@@ -239,6 +243,24 @@ class ClassGraphCreator implements ImportContext {
         ImmutableSet.Builder<JavaConstructorCall> result = ImmutableSet.builder();
         for (AccessRecord<ConstructorCallTarget> record : processedConstructorCallRecords.get(codeUnit)) {
             result.add(accessBuilderFrom(new JavaConstructorCallBuilder(), record).build());
+        }
+        return result.build();
+    }
+
+    @Override
+    public Set<JavaMethodReference> createMethodReferencesFor(JavaCodeUnit codeUnit) {
+        ImmutableSet.Builder<JavaMethodReference> result = ImmutableSet.builder();
+        for (AccessRecord<MethodReferenceTarget> record : processedMethodReferenceCallRecords.get(codeUnit)) {
+            result.add(accessBuilderFrom(new JavaMethodReferenceBuilder(), record).build());
+        }
+        return result.build();
+    }
+
+    @Override
+    public Set<JavaConstructorReference> createConstructorReferencesFor(JavaCodeUnit codeUnit) {
+        ImmutableSet.Builder<JavaConstructorReference> result = ImmutableSet.builder();
+        for (AccessRecord<ConstructorReferenceTarget> record : processedConstructorReferenceCallRecords.get(codeUnit)) {
+            result.add(accessBuilderFrom(new JavaConstructorReferenceBuilder(), record).build());
         }
         return result.build();
     }
