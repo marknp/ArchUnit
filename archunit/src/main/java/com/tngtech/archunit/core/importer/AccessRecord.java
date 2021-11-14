@@ -34,6 +34,8 @@ import com.tngtech.archunit.core.domain.AccessTarget;
 import com.tngtech.archunit.core.domain.AccessTarget.ConstructorCallTarget;
 import com.tngtech.archunit.core.domain.AccessTarget.FieldAccessTarget;
 import com.tngtech.archunit.core.domain.AccessTarget.MethodCallTarget;
+import com.tngtech.archunit.core.domain.AccessTarget.ConstructorReferenceTarget;
+import com.tngtech.archunit.core.domain.AccessTarget.MethodReferenceTarget;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClassDescriptor;
 import com.tngtech.archunit.core.domain.JavaCodeUnit;
@@ -45,6 +47,8 @@ import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.core.importer.DomainBuilders.ConstructorCallTargetBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.FieldAccessTargetBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.MethodCallTargetBuilder;
+import com.tngtech.archunit.core.importer.DomainBuilders.MethodReferenceTargetBuilder;
+import com.tngtech.archunit.core.importer.DomainBuilders.ConstructorReferenceTargetBuilder;
 import com.tngtech.archunit.core.importer.RawAccessRecord.CodeUnit;
 import com.tngtech.archunit.core.importer.RawAccessRecord.TargetInfo;
 
@@ -77,11 +81,29 @@ interface AccessRecord<TARGET extends AccessTarget> {
             };
         }
 
+        static Factory<RawAccessRecord, AccessRecord<ConstructorReferenceTarget>> forConstructorReferenceRecord() {
+            return new Factory<RawAccessRecord, AccessRecord<ConstructorReferenceTarget>>() {
+                @Override
+                AccessRecord<ConstructorReferenceTarget> create(RawAccessRecord record, ImportedClasses classes) {
+                    return new RawConstructorReferenceRecordProcessed(record, classes);
+                }
+            };
+        }
+
         static Factory<RawAccessRecord, AccessRecord<MethodCallTarget>> forMethodCallRecord() {
             return new Factory<RawAccessRecord, AccessRecord<MethodCallTarget>>() {
                 @Override
                 AccessRecord<MethodCallTarget> create(RawAccessRecord record, ImportedClasses classes) {
                     return new RawMethodCallRecordProcessed(record, classes);
+                }
+            };
+        }
+
+        static Factory<RawAccessRecord, AccessRecord<MethodReferenceTarget>> forMethodReferenceRecord() {
+            return new Factory<RawAccessRecord, AccessRecord<MethodReferenceTarget>>() {
+                @Override
+                AccessRecord<MethodReferenceTarget> create(RawAccessRecord record, ImportedClasses classes) {
+                    return new RawMethodReferenceRecordProcessed(record, classes);
                 }
             };
         }
@@ -152,6 +174,63 @@ interface AccessRecord<TARGET extends AccessTarget> {
             }
         }
 
+        private static class RawConstructorReferenceRecordProcessed implements AccessRecord<ConstructorReferenceTarget> {
+            private final RawAccessRecord record;
+            private final ImportedClasses classes;
+            private final JavaClass targetOwner;
+            private final Supplier<JavaCodeUnit> callerSupplier;
+
+            RawConstructorReferenceRecordProcessed(RawAccessRecord record, ImportedClasses classes) {
+                this.record = record;
+                this.classes = classes;
+                targetOwner = this.classes.getOrResolve(record.target.owner.getFullyQualifiedClassName());
+                callerSupplier = createCallerSupplier(record.caller, classes);
+            }
+
+            @Override
+            public JavaCodeUnit getCaller() {
+                return callerSupplier.get();
+            }
+
+            @Override
+            public ConstructorReferenceTarget getTarget() {
+                Supplier<Optional<JavaConstructor>> constructorSupplier = new ConstructorTargetSupplier(targetOwner, record.target);
+                List<JavaClass> paramTypes = getArgumentTypesFrom(record.target.desc, classes);
+                JavaClass returnType = classes.getOrResolve(void.class.getName());
+                return new ConstructorReferenceTargetBuilder()
+                        .withOwner(targetOwner)
+                        .withParameters(paramTypes)
+                        .withReturnType(returnType)
+                        .withConstructor(constructorSupplier)
+                        .build();
+            }
+
+            @Override
+            public int getLineNumber() {
+                return record.lineNumber;
+            }
+
+            private static class ConstructorTargetSupplier implements Supplier<Optional<JavaConstructor>> {
+                private final JavaClass targetOwner;
+                private final TargetInfo target;
+
+                ConstructorTargetSupplier(JavaClass targetOwner, TargetInfo target) {
+                    this.targetOwner = targetOwner;
+                    this.target = target;
+                }
+
+                @Override
+                public Optional<JavaConstructor> get() {
+                    for (JavaConstructor constructor : targetOwner.getConstructors()) {
+                        if (constructor.getDescriptor().equals(target.desc)) {
+                            return Optional.of(constructor);
+                        }
+                    }
+                    return Optional.empty();
+                }
+            }
+        }
+
         private static class RawMethodCallRecordProcessed implements AccessRecord<MethodCallTarget> {
             private final RawAccessRecord record;
             final ImportedClasses classes;
@@ -176,6 +255,59 @@ interface AccessRecord<TARGET extends AccessTarget> {
                 List<JavaClass> parameters = getArgumentTypesFrom(record.target.desc, classes);
                 JavaClass returnType = classes.getOrResolve(JavaClassDescriptorImporter.importAsmMethodReturnType(record.target.desc).getFullyQualifiedClassName());
                 return new MethodCallTargetBuilder()
+                        .withOwner(targetOwner)
+                        .withName(record.target.name)
+                        .withParameters(parameters)
+                        .withReturnType(returnType)
+                        .withMethods(methodsSupplier)
+                        .build();
+            }
+
+            @Override
+            public int getLineNumber() {
+                return record.lineNumber;
+            }
+
+            private static class MethodTargetSupplier implements Supplier<Set<JavaMethod>> {
+                private final Set<JavaMethod> allMethods;
+                private final TargetInfo target;
+
+                MethodTargetSupplier(Set<JavaMethod> allMethods, TargetInfo target) {
+                    this.allMethods = allMethods;
+                    this.target = target;
+                }
+
+                @Override
+                public Set<JavaMethod> get() {
+                    return tryFindMatchingTargets(allMethods, target, METHOD_SIGNATURE_PREDICATE);
+                }
+            }
+        }
+
+        private static class RawMethodReferenceRecordProcessed implements AccessRecord<MethodReferenceTarget> {
+            private final RawAccessRecord record;
+            final ImportedClasses classes;
+            private final JavaClass targetOwner;
+            private final Supplier<JavaCodeUnit> callerSupplier;
+
+            RawMethodReferenceRecordProcessed(RawAccessRecord record, ImportedClasses classes) {
+                this.record = record;
+                this.classes = classes;
+                targetOwner = this.classes.getOrResolve(record.target.owner.getFullyQualifiedClassName());
+                callerSupplier = createCallerSupplier(record.caller, classes);
+            }
+
+            @Override
+            public JavaCodeUnit getCaller() {
+                return callerSupplier.get();
+            }
+
+            @Override
+            public MethodReferenceTarget getTarget() {
+                Supplier<Set<JavaMethod>> methodsSupplier = new MethodTargetSupplier(targetOwner.getAllMethods(), record.target);
+                List<JavaClass> parameters = getArgumentTypesFrom(record.target.desc, classes);
+                JavaClass returnType = classes.getOrResolve(JavaClassDescriptorImporter.importAsmMethodReturnType(record.target.desc).getFullyQualifiedClassName());
+                return new MethodReferenceTargetBuilder()
                         .withOwner(targetOwner)
                         .withName(record.target.name)
                         .withParameters(parameters)

@@ -30,6 +30,8 @@ import com.tngtech.archunit.base.Optional;
 import com.tngtech.archunit.core.domain.AccessTarget;
 import com.tngtech.archunit.core.domain.AccessTarget.ConstructorCallTarget;
 import com.tngtech.archunit.core.domain.AccessTarget.MethodCallTarget;
+import com.tngtech.archunit.core.domain.AccessTarget.ConstructorReferenceTarget;
+import com.tngtech.archunit.core.domain.AccessTarget.MethodReferenceTarget;
 import com.tngtech.archunit.core.domain.ImportContext;
 import com.tngtech.archunit.core.domain.JavaAnnotation;
 import com.tngtech.archunit.core.domain.JavaClass;
@@ -75,6 +77,8 @@ class ClassGraphCreator implements ImportContext {
     private final SetMultimap<JavaCodeUnit, FieldAccessRecord> processedFieldAccessRecords = HashMultimap.create();
     private final SetMultimap<JavaCodeUnit, AccessRecord<MethodCallTarget>> processedMethodCallRecords = HashMultimap.create();
     private final SetMultimap<JavaCodeUnit, AccessRecord<ConstructorCallTarget>> processedConstructorCallRecords = HashMultimap.create();
+    private final SetMultimap<JavaCodeUnit, AccessRecord<AccessTarget.MethodReferenceTarget>> processedMethodReferenceCallRecords = HashMultimap.create();
+    private final SetMultimap<JavaCodeUnit, AccessRecord<AccessTarget.ConstructorReferenceTarget>> processedConstructorReferenceCallRecords = HashMultimap.create();
     private final Function<JavaClass, Set<String>> superclassStrategy;
     private final Function<JavaClass, Set<String>> interfaceStrategy;
 
@@ -167,6 +171,12 @@ class ClassGraphCreator implements ImportContext {
         }
         for (RawAccessRecord constructorCallRecord : importRecord.getRawConstructorCallRecords()) {
             tryProcess(constructorCallRecord, AccessRecord.Factory.forConstructorCallRecord(), processedConstructorCallRecords);
+        }
+        for (RawAccessRecord methodReferenceCallRecord : importRecord.getRawMethodReferenceCallRecords()) {
+            tryProcess(methodReferenceCallRecord, AccessRecord.Factory.forMethodReferenceRecord(), processedMethodReferenceCallRecords);
+        }
+        for (RawAccessRecord constructorReferenceCallRecord : importRecord.getRawConstructorReferenceCallRecords()) {
+            tryProcess(constructorReferenceCallRecord, AccessRecord.Factory.forConstructorReferenceRecord(), processedConstructorReferenceCallRecords);
         }
     }
 
