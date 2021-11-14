@@ -39,7 +39,8 @@ import com.tngtech.archunit.core.domain.properties.HasParameterTypes;
 import com.tngtech.archunit.core.domain.properties.HasReturnType;
 import com.tngtech.archunit.core.domain.properties.HasThrowsClause;
 import com.tngtech.archunit.core.domain.properties.HasType;
-import com.tngtech.archunit.core.importer.DomainBuilders.CodeUnitCallTargetBuilder;
+import com.tngtech.archunit.core.importer.DomainBuilders;
+import com.tngtech.archunit.core.importer.DomainBuilders.CodeUnitAccessTargetBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.ConstructorCallTargetBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.FieldAccessTargetBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.MethodCallTargetBuilder;
@@ -301,95 +302,126 @@ public abstract class AccessTarget implements HasName.AndFullName, CanBeAnnotate
         }
     }
 
-    /**
-     * Represents an {@link AccessTarget} where the target is a code unit. For further elaboration about the necessity to distinguish
-     * {@link CodeUnitCallTarget CodeUnitCallTarget} from {@link JavaCodeUnit}, refer to the documentation at {@link AccessTarget} and in particular the
-     * documentation at {@link MethodCallTarget#resolve() MethodCallTarget.resolve()}.
-     */
-    public abstract static class CodeUnitCallTarget extends AccessTarget
-            implements HasParameterTypes, HasReturnType, HasThrowsClause<CodeUnitCallTarget> {
+    public abstract static class CodeUnitAccessTarget extends AccessTarget
+            implements HasParameterTypes, HasReturnType, HasThrowsClause<CodeUnitAccessTarget> {
         private final ImmutableList<JavaClass> parameters;
         private final JavaClass returnType;
 
-        CodeUnitCallTarget(CodeUnitCallTargetBuilder<?> builder) {
+        CodeUnitAccessTarget(DomainBuilders.CodeUnitAccessTargetBuilder<?> builder) {
             super(builder.getOwner(), builder.getName(), builder.getFullName());
             this.parameters = ImmutableList.copyOf(builder.getParameters());
             this.returnType = builder.getReturnType();
         }
 
-        @Override
-        @SuppressWarnings({"unchecked", "rawtypes"}) // cast is okay, since this list can only be used in a covariant way (immutable)
-        public List<JavaType> getParameterTypes() {
-            return (List) parameters;
+            @Override
+            @SuppressWarnings({"unchecked", "rawtypes"}) // cast is okay, since this list can only be used in a covariant way (immutable)
+            public List<JavaType> getParameterTypes() {
+                return (List) parameters;
+            }
+
+            @Override
+            @PublicAPI(usage = ACCESS)
+            public List<JavaClass> getRawParameterTypes() {
+                return parameters;
+            }
+
+            @Override
+            @PublicAPI(usage = ACCESS)
+            public JavaType getReturnType() {
+                return returnType;
+            }
+
+            @Override
+            @PublicAPI(usage = ACCESS)
+            public JavaClass getRawReturnType() {
+                return returnType;
+            }
+
+            @Override
+            @PublicAPI(usage = ACCESS)
+            public ThrowsClause<? extends CodeUnitAccessTarget> getThrowsClause() {
+                List<ThrowsClause<JavaCodeUnit>> resolvedThrowsClauses = FluentIterable.from(resolve())
+                        .transform(toGuava(JavaCodeUnit.Functions.Get.throwsClause()))
+                        .toList();
+
+                if (resolvedThrowsClauses.isEmpty()) {
+                    return ThrowsClause.empty(this);
+                } else if (resolvedThrowsClauses.size() == 1) {
+                    return ThrowsClause.from(this, getOnlyElement(resolvedThrowsClauses).getTypes());
+                } else {
+                    return ThrowsClause.from(this, intersectTypesOf(resolvedThrowsClauses));
+                }
+            }
+
+            private List<JavaClass> intersectTypesOf(List<ThrowsClause<JavaCodeUnit>> throwsClauses) {
+                checkArgument(throwsClauses.size() > 1, "Can only intersect more than one throws clause");
+
+                List<JavaClass> result = new ArrayList<>(throwsClauses.get(0).getTypes());
+                for (ThrowsClause<?> throwsClause : throwsClauses.subList(1, throwsClauses.size())) {
+                    result.retainAll(throwsClause.getTypes());
+                }
+                return result;
+            }
+
+            /**
+             * Tries to resolve the targeted method or constructor.
+             *
+             * @see ConstructorCallTarget#resolveConstructor()
+             * @see MethodCallTarget#resolve()
+             */
+            @Override
+            @PublicAPI(usage = ACCESS)
+            public abstract Set<? extends JavaCodeUnit> resolve();
+
+            public static final class Functions {
+                private Functions() {
+                }
+
+                @PublicAPI(usage = ACCESS)
+                public static final ChainableFunction<CodeUnitAccessTarget, Set<JavaCodeUnit>> RESOLVE =
+                        new ChainableFunction<CodeUnitAccessTarget, Set<JavaCodeUnit>>() {
+                            @SuppressWarnings("unchecked") // Set is covariant
+                            @Override
+                            public Set<JavaCodeUnit> apply(CodeUnitAccessTarget input) {
+                                return (Set<JavaCodeUnit>) input.resolve();
+                            }
+                        };
+            }
+    }
+
+    /**
+     * Represents an {@link AccessTarget} where the target is a code unit. For further elaboration about the necessity to distinguish
+     * {@link CodeUnitCallTarget CodeUnitCallTarget} from {@link JavaCodeUnit}, refer to the documentation at {@link AccessTarget} and in particular the
+     * documentation at {@link MethodCallTarget#resolve() MethodCallTarget.resolve()}.
+     */
+    public abstract static class CodeUnitCallTarget extends CodeUnitAccessTarget {
+        CodeUnitCallTarget(CodeUnitAccessTargetBuilder<?> builder) {
+            super(builder);
         }
 
-        @Override
-        @PublicAPI(usage = ACCESS)
-        public List<JavaClass> getRawParameterTypes() {
-            return parameters;
-        }
-
-        @Override
-        @PublicAPI(usage = ACCESS)
-        public JavaType getReturnType() {
-            return returnType;
-        }
-
-        @Override
-        @PublicAPI(usage = ACCESS)
-        public JavaClass getRawReturnType() {
-            return returnType;
-        }
-
+        @SuppressWarnings("unchecked")
         @Override
         @PublicAPI(usage = ACCESS)
         public ThrowsClause<CodeUnitCallTarget> getThrowsClause() {
-            List<ThrowsClause<JavaCodeUnit>> resolvedThrowsClauses = FluentIterable.from(resolve())
-                    .transform(toGuava(JavaCodeUnit.Functions.Get.throwsClause()))
-                    .toList();
+            return (ThrowsClause<CodeUnitCallTarget>) super.getThrowsClause();
+        }
+    }
 
-            if (resolvedThrowsClauses.isEmpty()) {
-                return ThrowsClause.empty(this);
-            } else if (resolvedThrowsClauses.size() == 1) {
-                return ThrowsClause.from(this, getOnlyElement(resolvedThrowsClauses).getTypes());
-            } else {
-                return ThrowsClause.from(this, intersectTypesOf(resolvedThrowsClauses));
-            }
+    /**
+     * Represents an {@link AccessTarget} where the target is a code unit. For further elaboration about the necessity to distinguish
+     * {@link CodeUnitCallTarget CodeUnitCallTarget} from {@link JavaCodeUnit}, refer to the documentation at {@link AccessTarget} and in particular the
+     * documentation at {@link MethodCallTarget#resolve() MethodCallTarget.resolve()}.
+     */
+    public abstract static class CodeUnitReferenceTarget extends CodeUnitAccessTarget {
+        CodeUnitReferenceTarget(CodeUnitAccessTargetBuilder<?> builder) {
+            super(builder);
         }
 
-        private List<JavaClass> intersectTypesOf(List<ThrowsClause<JavaCodeUnit>> throwsClauses) {
-            checkArgument(throwsClauses.size() > 1, "Can only intersect more than one throws clause");
-
-            List<JavaClass> result = new ArrayList<>(throwsClauses.get(0).getTypes());
-            for (ThrowsClause<?> throwsClause : throwsClauses.subList(1, throwsClauses.size())) {
-                result.retainAll(throwsClause.getTypes());
-            }
-            return result;
-        }
-
-        /**
-         * Tries to resolve the targeted method or constructor.
-         *
-         * @see ConstructorCallTarget#resolveConstructor()
-         * @see MethodCallTarget#resolve()
-         */
+        @SuppressWarnings("unchecked")
         @Override
         @PublicAPI(usage = ACCESS)
-        public abstract Set<? extends JavaCodeUnit> resolve();
-
-        public static final class Functions {
-            private Functions() {
-            }
-
-            @PublicAPI(usage = ACCESS)
-            public static final ChainableFunction<CodeUnitCallTarget, Set<JavaCodeUnit>> RESOLVE =
-                    new ChainableFunction<CodeUnitCallTarget, Set<JavaCodeUnit>>() {
-                        @SuppressWarnings("unchecked") // Set is covariant
-                        @Override
-                        public Set<JavaCodeUnit> apply(CodeUnitCallTarget input) {
-                            return (Set<JavaCodeUnit>) input.resolve();
-                        }
-                    };
+        public ThrowsClause<CodeUnitReferenceTarget> getThrowsClause() {
+            return (ThrowsClause<CodeUnitReferenceTarget>) super.getThrowsClause();
         }
     }
 
@@ -435,6 +467,54 @@ public abstract class AccessTarget implements HasName.AndFullName, CanBeAnnotate
                     new ChainableFunction<ConstructorCallTarget, Set<JavaConstructor>>() {
                         @Override
                         public Set<JavaConstructor> apply(ConstructorCallTarget input) {
+                            return input.resolve();
+                        }
+                    };
+        }
+    }
+
+    public static final class ConstructorReferenceTarget extends CodeUnitReferenceTarget {
+        private final Supplier<Optional<JavaConstructor>> constructor;
+
+        ConstructorReferenceTarget(DomainBuilders.ConstructorReferenceTargetBuilder builder) {
+            super(builder);
+            constructor = builder.getConstructor();
+        }
+
+        /**
+         * @return A constructor reference that matches this target, or {@link Optional#absent()} if no matching
+         * constructor reference was imported.
+         */
+        @PublicAPI(usage = ACCESS)
+        public Optional<JavaConstructor> resolveConstructor() {
+            return constructor.get();
+        }
+
+        /**
+         * @return constructor references that match the target, this will always be either one constructor reference,
+         * or no constructor @see #resolveConstructor()
+         */
+        @Override
+        @PublicAPI(usage = ACCESS)
+        public Set<JavaConstructor> resolve() {
+            return resolveConstructor().asSet();
+        }
+
+        @Override
+        @PublicAPI(usage = ACCESS)
+        public String getDescription() {
+            return "constructor reference <" + getFullName() + ">";
+        }
+
+        public static final class Functions {
+            private Functions() {
+            }
+
+            @PublicAPI(usage = ACCESS)
+            public static final ChainableFunction<ConstructorReferenceTarget, Set<JavaConstructor>> RESOLVE =
+                    new ChainableFunction<ConstructorReferenceTarget, Set<JavaConstructor>>() {
+                        @Override
+                        public Set<JavaConstructor> apply(ConstructorReferenceTarget input) {
                             return input.resolve();
                         }
                     };
@@ -509,6 +589,80 @@ public abstract class AccessTarget implements HasName.AndFullName, CanBeAnnotate
                     new ChainableFunction<MethodCallTarget, Set<JavaMethod>>() {
                         @Override
                         public Set<JavaMethod> apply(MethodCallTarget input) {
+                            return input.resolve();
+                        }
+                    };
+        }
+    }
+
+    /**
+     * Represents a {@link CodeUnitCallTarget} where the target is a method. For further elaboration about the necessity to distinguish
+     * {@link MethodCallTarget MethodCallTarget} from {@link JavaMethod}, refer to the documentation at {@link AccessTarget} and in particular the
+     * documentation at {@link #resolve()}.
+     */
+    public static final class MethodReferenceTarget extends CodeUnitReferenceTarget {
+        private final Supplier<Set<JavaMethod>> methods;
+
+        MethodReferenceTarget(DomainBuilders.MethodReferenceTargetBuilder builder) {
+            super(builder);
+            this.methods = Suppliers.memoize(builder.getMethods());
+        }
+
+        /**
+         * Attempts to resolve imported methods that match this target. Note that while usually there is one unique
+         * target (if imported), it is possible that the call is ambiguous. For example consider
+         * <pre><code>
+         * interface A {
+         *     void target();
+         * }
+         *
+         * interface B {
+         *     void target();
+         * }
+         *
+         * interface C extends A, B {}
+         *
+         * class X {
+         *     C c;
+         *     // ...
+         *     void origin() {
+         *         c.target();
+         *     }
+         * }
+         * </code></pre>
+         * While, for any concrete implementation, the compiler will naturally resolve one concrete target to link to,
+         * and thus at runtime the called target ist clear, from an analytical point of view the relevant target
+         * can't be uniquely identified here. To sum up, the result can be
+         * <ul>
+         * <li>empty - if no imported method matches the target</li>
+         * <li>a single method - if the method was imported and can uniquely be identified</li>
+         * <li>several methods - in scenarios where there is no unique method that matches the target</li>
+         * </ul>
+         * Note that the target would be uniquely determinable, if C would declare <code>void target()</code> itself.
+         *
+         * @return Set of matching methods, usually a single target
+         */
+        @Override
+        @PublicAPI(usage = ACCESS)
+        public Set<JavaMethod> resolve() {
+            return methods.get();
+        }
+
+        @Override
+        @PublicAPI(usage = ACCESS)
+        public String getDescription() {
+            return "method reference <" + getFullName() + ">";
+        }
+
+        public static final class Functions {
+            private Functions() {
+            }
+
+            @PublicAPI(usage = ACCESS)
+            public static final ChainableFunction<MethodReferenceTarget, Set<JavaMethod>> RESOLVE =
+                    new ChainableFunction<MethodReferenceTarget, Set<JavaMethod>>() {
+                        @Override
+                        public Set<JavaMethod> apply(MethodReferenceTarget input) {
                             return input.resolve();
                         }
                     };

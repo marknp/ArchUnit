@@ -38,6 +38,8 @@ import com.tngtech.archunit.core.domain.AccessTarget;
 import com.tngtech.archunit.core.domain.AccessTarget.ConstructorCallTarget;
 import com.tngtech.archunit.core.domain.AccessTarget.FieldAccessTarget;
 import com.tngtech.archunit.core.domain.AccessTarget.MethodCallTarget;
+import com.tngtech.archunit.core.domain.AccessTarget.ConstructorReferenceTarget;
+import com.tngtech.archunit.core.domain.AccessTarget.MethodReferenceTarget;
 import com.tngtech.archunit.core.domain.DomainObjectCreationContext;
 import com.tngtech.archunit.core.domain.Formatters;
 import com.tngtech.archunit.core.domain.InstanceofCheck;
@@ -1046,12 +1048,12 @@ public final class DomainBuilders {
     }
 
     @Internal
-    public abstract static class CodeUnitCallTargetBuilder<SELF extends CodeUnitCallTargetBuilder<SELF>>
+    public abstract static class CodeUnitAccessTargetBuilder<SELF extends CodeUnitAccessTargetBuilder<SELF>>
             extends AccessTargetBuilder<SELF> {
         private List<JavaClass> parameters;
         private JavaClass returnType;
 
-        private CodeUnitCallTargetBuilder() {
+        private CodeUnitAccessTargetBuilder() {
         }
 
         SELF withParameters(final List<JavaClass> parameters) {
@@ -1078,7 +1080,7 @@ public final class DomainBuilders {
     }
 
     @Internal
-    public static final class ConstructorCallTargetBuilder extends CodeUnitCallTargetBuilder<ConstructorCallTargetBuilder> {
+    public static final class ConstructorCallTargetBuilder extends CodeUnitAccessTargetBuilder<ConstructorCallTargetBuilder> {
         private Supplier<Optional<JavaConstructor>> constructor;
 
         ConstructorCallTargetBuilder() {
@@ -1100,7 +1102,29 @@ public final class DomainBuilders {
     }
 
     @Internal
-    public static final class MethodCallTargetBuilder extends CodeUnitCallTargetBuilder<MethodCallTargetBuilder> {
+    public static final class ConstructorReferenceTargetBuilder extends CodeUnitAccessTargetBuilder<ConstructorReferenceTargetBuilder> {
+        private Supplier<Optional<JavaConstructor>> constructor;
+
+        ConstructorReferenceTargetBuilder() {
+            withName(CONSTRUCTOR_NAME);
+        }
+
+        ConstructorReferenceTargetBuilder withConstructor(Supplier<Optional<JavaConstructor>> constructor) {
+            this.constructor = constructor;
+            return self();
+        }
+
+        public Supplier<Optional<JavaConstructor>> getConstructor() {
+            return constructor;
+        }
+
+        ConstructorReferenceTarget build() {
+            return DomainObjectCreationContext.createConstructorReferenceTarget(this);
+        }
+    }
+
+    @Internal
+    public static final class MethodCallTargetBuilder extends CodeUnitAccessTargetBuilder<MethodCallTargetBuilder> {
         private Supplier<Set<JavaMethod>> methods;
 
         MethodCallTargetBuilder() {
@@ -1117,6 +1141,27 @@ public final class DomainBuilders {
 
         MethodCallTarget build() {
             return DomainObjectCreationContext.createMethodCallTarget(this);
+        }
+    }
+
+    @Internal
+    public static final class MethodReferenceTargetBuilder extends CodeUnitAccessTargetBuilder<MethodReferenceTargetBuilder> {
+        private Supplier<Set<JavaMethod>> methods;
+
+        MethodReferenceTargetBuilder() {
+        }
+
+        MethodReferenceTargetBuilder withMethods(final Supplier<Set<JavaMethod>> methods) {
+            this.methods = methods;
+            return this;
+        }
+
+        public Supplier<Set<JavaMethod>> getMethods() {
+            return methods;
+        }
+
+        MethodReferenceTarget build() {
+            return DomainObjectCreationContext.createMethodReferenceTarget(this);
         }
     }
 

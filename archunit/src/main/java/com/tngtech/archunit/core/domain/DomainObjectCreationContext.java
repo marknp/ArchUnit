@@ -26,6 +26,7 @@ import com.tngtech.archunit.base.HasDescription;
 import com.tngtech.archunit.base.Optional;
 import com.tngtech.archunit.core.importer.DomainBuilders;
 import com.tngtech.archunit.core.importer.DomainBuilders.ConstructorCallTargetBuilder;
+import com.tngtech.archunit.core.importer.DomainBuilders.ConstructorReferenceTargetBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.FieldAccessTargetBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.JavaAnnotationBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.JavaClassBuilder;
@@ -122,6 +123,10 @@ public class DomainObjectCreationContext {
         return new AccessTarget.ConstructorCallTarget(builder);
     }
 
+    public static AccessTarget.ConstructorReferenceTarget createConstructorReferenceTarget(ConstructorReferenceTargetBuilder builder) {
+        return new AccessTarget.ConstructorReferenceTarget(builder);
+    }
+
     public static JavaMethod createJavaMethod(JavaMethodBuilder builder, Function<JavaMethod, Optional<Object>> createAnnotationDefaultValue) {
         return new JavaMethod(builder, createAnnotationDefaultValue);
     }
@@ -132,6 +137,11 @@ public class DomainObjectCreationContext {
 
     public static AccessTarget.MethodCallTarget createMethodCallTarget(MethodCallTargetBuilder builder) {
         return new AccessTarget.MethodCallTarget(builder);
+    }
+
+    public static AccessTarget.MethodReferenceTarget createMethodReferenceTarget(
+            DomainBuilders.MethodReferenceTargetBuilder builder) {
+        return new AccessTarget.MethodReferenceTarget(builder);
     }
 
     public static JavaStaticInitializer createJavaStaticInitializer(JavaStaticInitializerBuilder builder) {
