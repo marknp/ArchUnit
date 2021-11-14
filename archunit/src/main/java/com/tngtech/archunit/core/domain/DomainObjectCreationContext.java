@@ -32,11 +32,13 @@ import com.tngtech.archunit.core.importer.DomainBuilders.JavaAnnotationBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.JavaClassBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.JavaConstructorBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.JavaConstructorCallBuilder;
+import com.tngtech.archunit.core.importer.DomainBuilders.JavaConstructorReferenceBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.JavaEnumConstantBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.JavaFieldAccessBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.JavaFieldBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.JavaMethodBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.JavaMethodCallBuilder;
+import com.tngtech.archunit.core.importer.DomainBuilders.JavaMethodReferenceBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.JavaStaticInitializerBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.JavaWildcardTypeBuilder;
 import com.tngtech.archunit.core.importer.DomainBuilders.MethodCallTargetBuilder;
@@ -119,6 +121,10 @@ public class DomainObjectCreationContext {
         return new JavaConstructorCall(builder);
     }
 
+    public static JavaConstructorReference createJavaConstructorReference(JavaConstructorReferenceBuilder builder) {
+        return new JavaConstructorReference(builder);
+    }
+
     public static AccessTarget.ConstructorCallTarget createConstructorCallTarget(ConstructorCallTargetBuilder builder) {
         return new AccessTarget.ConstructorCallTarget(builder);
     }
@@ -133,6 +139,10 @@ public class DomainObjectCreationContext {
 
     public static JavaMethodCall createJavaMethodCall(JavaMethodCallBuilder builder) {
         return new JavaMethodCall(builder);
+    }
+
+    public static JavaMethodReference createJavaMethodReference(JavaMethodReferenceBuilder builder) {
+        return new JavaMethodReference(builder);
     }
 
     public static AccessTarget.MethodCallTarget createMethodCallTarget(MethodCallTargetBuilder builder) {

@@ -49,12 +49,14 @@ import com.tngtech.archunit.core.domain.JavaClassDescriptor;
 import com.tngtech.archunit.core.domain.JavaCodeUnit;
 import com.tngtech.archunit.core.domain.JavaConstructor;
 import com.tngtech.archunit.core.domain.JavaConstructorCall;
+import com.tngtech.archunit.core.domain.JavaConstructorReference;
 import com.tngtech.archunit.core.domain.JavaEnumConstant;
 import com.tngtech.archunit.core.domain.JavaField;
 import com.tngtech.archunit.core.domain.JavaFieldAccess;
 import com.tngtech.archunit.core.domain.JavaFieldAccess.AccessType;
 import com.tngtech.archunit.core.domain.JavaMethod;
 import com.tngtech.archunit.core.domain.JavaMethodCall;
+import com.tngtech.archunit.core.domain.JavaMethodReference;
 import com.tngtech.archunit.core.domain.JavaModifier;
 import com.tngtech.archunit.core.domain.JavaParameter;
 import com.tngtech.archunit.core.domain.JavaParameterizedType;
@@ -972,12 +974,32 @@ public final class DomainBuilders {
     }
 
     @Internal
+    public static final class JavaMethodReferenceBuilder extends JavaAccessBuilder<MethodReferenceTarget, JavaMethodReferenceBuilder> {
+        JavaMethodReferenceBuilder() {
+        }
+
+        JavaMethodReference build() {
+            return DomainObjectCreationContext.createJavaMethodReference(this);
+        }
+    }
+
+    @Internal
     public static class JavaConstructorCallBuilder extends JavaAccessBuilder<ConstructorCallTarget, JavaConstructorCallBuilder> {
         JavaConstructorCallBuilder() {
         }
 
         JavaConstructorCall build() {
             return DomainObjectCreationContext.createJavaConstructorCall(this);
+        }
+    }
+
+    @Internal
+    public static class JavaConstructorReferenceBuilder extends JavaAccessBuilder<ConstructorReferenceTarget, JavaConstructorReferenceBuilder> {
+        JavaConstructorReferenceBuilder() {
+        }
+
+        JavaConstructorReference build() {
+            return DomainObjectCreationContext.createJavaConstructorReference(this);
         }
     }
 
