@@ -50,6 +50,6 @@ public class MyArchitectureTest {
 ![ArchUnit Fluent API](assets/ArchUnit-API.gif)
 
 ## How to continue
-For further information, for example how to use the extended JUnit 4 support supplying caching and 
-more, check out the [User Guide](userguide/html/000_Index.html) or examples for the current 
+For further information check out the [User Guide](userguide/html/000_Index.html) and the examples for the current 
 release at [ArchUnit Examples](https://github.com/TNG/ArchUnit-Examples).
+You find there expecially how to use the extended [JUnit 4 and JUnit 5 support](userguide/html/000_Index.html#_using_junit_4_or_junit_5) where classes are cached between different tests.
