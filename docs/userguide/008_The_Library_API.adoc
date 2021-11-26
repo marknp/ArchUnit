@@ -217,6 +217,7 @@ For example:
 * To check that classes do not use `java.util.logging`, but use other libraries like Log4j, Logback, or SLF4J instead
 * To check that classes do not use JodaTime, but use `java.time` instead.
 * To check that classes do not use field injection, but constructor injection instead.
+* To check that test packages match the production code packages
 
 ==== DependencyRules
 

@@ -25,5 +25,10 @@ public class ExpectedClass {
                     clazz.getName(), desiredClass.getName(), clazz.getSimpleName());
             return new ExpectedMessage(expectedMessage);
         }
+
+        public ExpectedMessage withMessage(String message) {
+            return new ExpectedMessage(message);
+        }
+
     }
 }

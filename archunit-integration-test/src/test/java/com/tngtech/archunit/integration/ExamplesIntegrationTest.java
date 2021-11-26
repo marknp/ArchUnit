@@ -263,6 +263,13 @@ class ExamplesIntegrationTest {
         expectAccessToStandardStreams(expectFailures);
         expectThrownGenericExceptions(expectFailures);
 
+        expectFailures.ofRule("classes should have corresponding production code")
+                .by(ExpectedClass.javaClass(WronglyNamedTest.class).withMessage("Test class com.tngtech.archunit.example.layers.WronglyNamedTest does not have matching production code"));
+
+        expectFailures.ofRule("classes should have their test in the same package")
+                .by(ExpectedClass.javaClass(WronglyNamedTest.class).withMessage(
+                        "Test class ClassViolatingCodingRulesTest is in the wrong package (expected: com.tngtech.archunit.example.layers, actual: [JavaPackage[com.tngtech.archunit.example.layers.wrongpackage]])"));
+
         return expectFailures.toDynamicTests();
     }
 

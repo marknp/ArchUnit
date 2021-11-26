@@ -15,15 +15,25 @@
  */
 package com.tngtech.archunit.library;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import com.google.common.collect.Lists;
 import com.tngtech.archunit.PublicAPI;
 import com.tngtech.archunit.core.domain.AccessTarget.FieldAccessTarget;
 import com.tngtech.archunit.core.domain.JavaAccess.Functions.Get;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaField;
 import com.tngtech.archunit.core.domain.JavaFieldAccess;
+import com.tngtech.archunit.core.domain.JavaPackage;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
+import com.tngtech.archunit.lang.ConditionEvents;
+import com.tngtech.archunit.lang.SimpleConditionEvent;
 
 import static com.tngtech.archunit.PublicAPI.Usage.ACCESS;
 import static com.tngtech.archunit.base.DescribedPredicate.not;
@@ -44,6 +54,7 @@ import static com.tngtech.archunit.lang.conditions.ArchConditions.callMethodWher
 import static com.tngtech.archunit.lang.conditions.ArchConditions.dependOnClassesThat;
 import static com.tngtech.archunit.lang.conditions.ArchConditions.setFieldWhere;
 import static com.tngtech.archunit.lang.conditions.ArchPredicates.is;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noFields;
 
@@ -407,4 +418,95 @@ public final class GeneralCodingRules {
                     .as("no classes should use field injection")
                     .because("field injection is considered harmful; use constructor injection or setter injection instead; "
                             + "see https://stackoverflow.com/q/39890849 for detailed explanations");
+
+    @PublicAPI(usage = ACCESS)
+    public static ArchRule packageNameShouldMatchForTestsIdentifyingAs(String sufffixForTests) {
+        return classes().should(new TestPackageNameMatchesProductionCondition(sufffixForTests));
+    }
+
+    private static class TestPackageNameMatchesProductionCondition extends ArchCondition<JavaClass> {
+        private final Map<String, List<JavaPackage>> testNameToPackage = new HashMap<>();
+        private final String testSuffix;
+
+        public TestPackageNameMatchesProductionCondition(String testSuffix) {
+            super("have their test in the same package");
+            this.testSuffix = testSuffix;
+        }
+
+        @Override
+        public void init(Iterable<JavaClass> allClasses) {
+            for (JavaClass clazz : allClasses) {
+                String simpleName = clazz.getSimpleName();
+                if (simpleName.endsWith(testSuffix)) {
+                    if (testNameToPackage.get(simpleName) == null) {
+                        testNameToPackage.put(simpleName, Lists.<JavaPackage>newArrayList());
+                    }
+                    testNameToPackage.get(simpleName).add(clazz.getPackage());
+                }
+            }
+        }
+
+        @Override
+        public void check(JavaClass item, ConditionEvents events) {
+            if (!item.getSimpleName().equals("package-info") && !item.isAnonymousClass()) {
+                String possibleTestName = item.getSimpleName() + testSuffix;
+                List<JavaPackage> correspondingTestPackages = testNameToPackage.get(possibleTestName);
+                if (correspondingTestPackages != null) {
+                    boolean match = false;
+                    for (JavaPackage correspondingTestPackage : correspondingTestPackages) {
+                        if (correspondingTestPackage.getName().equals(item.getPackageName())) {
+                            match = true;
+                            break;
+                        }
+                    }
+                    if (!match) {
+                        String message = String.format("Test class %s is in the wrong package (expected: %s, actual: %s)",
+                                possibleTestName, item.getPackage().getName(), correspondingTestPackages);
+                        events.add(SimpleConditionEvent.violated(item, message));
+                    }
+
+                }
+            }
+        }
+    }
+
+    @PublicAPI(usage = ACCESS)
+    public static ArchRule testNameShouldMatchProduction(String suffixForTest) {
+        return classes().should(new ProdCodeExistsForTestCondition(suffixForTest));
+    }
+
+    private static class ProdCodeExistsForTestCondition extends ArchCondition<JavaClass> {
+        private final Set<String> prodClassSimpleNames = new HashSet<>();
+        private final String testSuffix;
+
+        public ProdCodeExistsForTestCondition(String testSuffix) {
+            super("have corresponding production code");
+            this.testSuffix = testSuffix;
+        }
+
+        @Override
+        public void init(Iterable<JavaClass> allClasses) {
+            for (JavaClass clazz : allClasses) {
+                String simpleName = clazz.getSimpleName();
+                if (!simpleName.endsWith(testSuffix)) {
+                    prodClassSimpleNames.add(simpleName);
+                }
+            }
+        }
+
+        @Override
+        public void check(JavaClass item, ConditionEvents events) {
+            if (item.getSimpleName().endsWith(testSuffix)) {
+                String productionCodeName = deleteSuffix(item.getSimpleName(), testSuffix);
+                if (!prodClassSimpleNames.contains(productionCodeName)) {
+                    String message = String.format("Test class %s does not have matching production code", item.getName());
+                    events.add(SimpleConditionEvent.violated(item, message));
+                }
+            }
+        }
+
+        private static String deleteSuffix(String string, String suffix) {
+            return string.substring(0, string.lastIndexOf(suffix));
+        }
+    }
 }

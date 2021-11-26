@@ -19,6 +19,8 @@ import static com.tngtech.archunit.library.GeneralCodingRules.NO_CLASSES_SHOULD_
 import static com.tngtech.archunit.library.GeneralCodingRules.NO_CLASSES_SHOULD_USE_FIELD_INJECTION;
 import static com.tngtech.archunit.library.GeneralCodingRules.NO_CLASSES_SHOULD_USE_JAVA_UTIL_LOGGING;
 import static com.tngtech.archunit.library.GeneralCodingRules.NO_CLASSES_SHOULD_USE_JODATIME;
+import static com.tngtech.archunit.library.GeneralCodingRules.packageNameShouldMatchForTestsIdentifyingAs;
+import static com.tngtech.archunit.library.GeneralCodingRules.testNameShouldMatchProduction;
 
 @Category(Example.class)
 @RunWith(ArchUnitRunner.class)
@@ -58,4 +60,9 @@ public class CodingRulesTest {
             CompositeArchRule.of(NO_CLASSES_SHOULD_ACCESS_STANDARD_STREAMS)
                     .and(NO_CLASSES_SHOULD_THROW_GENERIC_EXCEPTIONS);
 
+    @ArchTest
+    public static final ArchRule packageNameShouldMatchForTests = packageNameShouldMatchForTestsIdentifyingAs("Test");
+
+    @ArchTest
+    public static final ArchRule prodCodeShouldMatchTest = testNameShouldMatchProduction("Test");
 }
